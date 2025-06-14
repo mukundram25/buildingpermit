@@ -35,6 +35,10 @@ ENV/
 # Uploads
 uploads/
 
+# Documents
+*.pdf
+DocumentCloud/
+
 # IDE
 .idea/
 .vscode/
