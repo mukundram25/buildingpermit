@@ -26,28 +26,39 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Validate all required environment variables
+required_env_vars = {
+    'GOOGLE_API_KEY': 'Google API Key for Gemini',
+    'GOOGLE_CLOUD_PROJECT_ID': 'Google Cloud Project ID',
+    'DOCAI_PROCESSOR_ID': 'Document AI Processor ID'
+}
+
+missing_vars = []
+for var, description in required_env_vars.items():
+    if not os.getenv(var):
+        missing_vars.append(f"{var} ({description})")
+
+if missing_vars:
+    error_msg = "Missing required environment variables:\n" + "\n".join(missing_vars)
+    logger.error(error_msg)
+    raise ValueError(error_msg)
+
 # Configure Gemini
 try:
     api_key = os.getenv('GOOGLE_API_KEY')
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable is not set")
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
+    logger.info("Gemini API configured successfully")
 except Exception as e:
     logger.error(f"Error configuring Gemini: {str(e)}")
     raise
 
 # Document AI configuration
 PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
-if not PROJECT_ID:
-    logger.error("GOOGLE_CLOUD_PROJECT_ID environment variable is not set")
-    raise ValueError("GOOGLE_CLOUD_PROJECT_ID environment variable is not set")
-
 LOCATION = os.getenv('DOCAI_LOCATION', 'us')
 PROCESSOR_ID = os.getenv('DOCAI_PROCESSOR_ID')
-if not PROCESSOR_ID:
-    logger.error("DOCAI_PROCESSOR_ID environment variable is not set")
-    raise ValueError("DOCAI_PROCESSOR_ID environment variable is not set")
+
+logger.info(f"Document AI configured with Project ID: {PROJECT_ID}, Location: {LOCATION}, Processor ID: {PROCESSOR_ID}")
 
 # Initialize SQLite database
 def init_db():
