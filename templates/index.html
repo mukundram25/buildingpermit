@@ -20,6 +20,13 @@
             min-height: 200px;
             background: #f8fafc;
             padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 1rem;
         }
         .message {
             max-width: 85%;
@@ -35,33 +42,39 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .user-message {
-            background: #2563eb;
-            color: white;
+            background: #f1f5f9;
+            color: #1e293b;
             margin-left: auto;
             border-bottom-right-radius: 0.25rem;
+            border: 1px solid #e2e8f0;
         }
         .bot-message {
             background: white;
             color: #1e293b;
             margin-right: auto;
             border-bottom-left-radius: 0.25rem;
+            border: 1px solid #e2e8f0;
         }
         .suggestions {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-top: 0.75rem;
+            gap: 0.5rem;
+            margin: 0.25rem 0 1rem 0;
+            padding: 0.25rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
         }
         .suggestion-bubble {
             background: #f1f5f9;
             color: #1e293b;
-            padding: 0.625rem 1.25rem;
+            padding: 0.5rem 0.875rem;
             border-radius: 1rem;
             font-size: 0.875rem;
             cursor: pointer;
             transition: all 0.2s ease;
             border: 1px solid #e2e8f0;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
         }
         .suggestion-bubble:hover {
             background: #e2e8f0;
@@ -77,6 +90,11 @@
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             transition: all 0.2s ease;
+            font-size: 0.875rem;
+            color: #1e293b;
+        }
+        .question-input::placeholder {
+            color: #94a3b8;
         }
         .question-input:focus {
             background: white;
@@ -112,7 +130,7 @@
             padding: 0.5rem 1rem;
             background: #ecfdf5;
             border-radius: 0.5rem;
-            margin: 0.5rem 0;
+            margin: 0.5rem 0 0.25rem 0;
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -172,8 +190,10 @@
         <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
             <!-- Chat Messages Area -->
             <div id="chatMessages" class="chat-container">
-                <div class="message bot-message">
-                    <p class="text-gray-800">👋 Hi! I can help you understand your permit documents. Upload a PDF and ask me any questions about it.</p>
+                <div class="messages-wrapper">
+                    <div class="message bot-message">
+                        <p class="text-gray-800">👋 Hi! I can help you understand your permit documents. Attach a PDF and ask me any questions about it.</p>
+                    </div>
                 </div>
             </div>
 
@@ -194,11 +214,11 @@
                     <!-- Message Input -->
                     <div class="flex-grow relative">
                         <input type="text" id="questionInput" 
-                               class="question-input w-full px-4 py-3 pr-12 rounded-lg focus:outline-none text-lg"
+                               class="question-input w-full px-4 py-2.5 pr-12 rounded-lg focus:outline-none"
                                placeholder="Ask a question about your permit document...">
                         <button id="askButton" 
                                 class="ask-button absolute right-2 top-1/2 transform -translate-y-1/2 focus:outline-none">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                             </svg>
                         </button>
@@ -217,7 +237,7 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-8">
         <div class="container mx-auto px-4 text-center">
-            <p class="text-gray-400">© 2024 Permit Document Q&A. All rights reserved.</p>
+            <p class="text-gray-400">© 2025 Building Permit Q&A. All rights reserved.</p>
         </div>
     </footer>
 
@@ -239,8 +259,8 @@
             } else {
                 messageDiv.innerHTML = `<p class="text-gray-800">${text}</p>`;
             }
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            chatMessages.querySelector('.messages-wrapper').appendChild(messageDiv);
+            chatMessages.querySelector('.messages-wrapper').scrollTop = chatMessages.querySelector('.messages-wrapper').scrollHeight;
         }
         
         function handleFileSelect(event) {
@@ -277,7 +297,7 @@
                     </svg>
                     Document processed successfully! Here are some questions you can ask:
                 `;
-                chatMessages.appendChild(successDiv);
+                chatMessages.querySelector('.messages-wrapper').appendChild(successDiv);
                 
                 // Generate and display suggested questions
                 return fetch('/suggest_questions', {
@@ -295,20 +315,7 @@
                 }
                 const suggestionsDiv = document.createElement('div');
                 suggestionsDiv.className = 'suggestions';
-                
-                // Ensure we have an array of questions
-                let questions = [];
-                if (typeof data.questions === 'string') {
-                    questions = data.questions.split('\n').filter(q => q.trim());
-                } else if (Array.isArray(data.questions)) {
-                    questions = data.questions;
-                }
-                
-                console.log('Questions:', questions); // Debug log
-                
-                questions.forEach(question => {
-                    if (!question.trim()) return; // Skip empty questions
-                    
+                data.questions.forEach(question => {
                     const bubble = document.createElement('div');
                     bubble.className = 'suggestion-bubble';
                     bubble.textContent = question.replace(/^\d+\.\s*/, '');
@@ -318,7 +325,7 @@
                     };
                     suggestionsDiv.appendChild(bubble);
                 });
-                addMessage(suggestionsDiv, 'assistant');
+                chatMessages.querySelector('.messages-wrapper').appendChild(suggestionsDiv);
             })
             .catch(error => {
                 console.error('Error:', error);
