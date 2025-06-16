@@ -8,9 +8,14 @@ from dotenv import load_dotenv
 import sqlite3
 from datetime import datetime
 import logging
+import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
@@ -24,7 +29,12 @@ app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Vercel
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    logger.info(f"Created upload directory at {app.config['UPLOAD_FOLDER']}")
+except Exception as e:
+    logger.error(f"Error creating upload directory: {str(e)}")
+    raise
 
 # Validate all required environment variables
 required_env_vars = {
@@ -35,8 +45,12 @@ required_env_vars = {
 
 missing_vars = []
 for var, description in required_env_vars.items():
-    if not os.getenv(var):
+    value = os.getenv(var)
+    if not value:
         missing_vars.append(f"{var} ({description})")
+    else:
+        # Log that we found the variable (but not its value for security)
+        logger.info(f"Found environment variable: {var}")
 
 if missing_vars:
     error_msg = "Missing required environment variables:\n" + "\n".join(missing_vars)
@@ -65,6 +79,7 @@ def init_db():
     try:
         # Use /tmp for database in Vercel
         db_path = '/tmp/chat_logs.db'
+        logger.info(f"Initializing database at {db_path}")
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         
@@ -117,6 +132,7 @@ def split_pdf(pdf_path):
 
 @app.route('/')
 def index():
+    logger.info("Serving index page")
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
