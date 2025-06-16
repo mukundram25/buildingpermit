@@ -231,8 +231,4 @@ def handle_error(error):
     return jsonify({
         'error': str(error),
         'type': type(error).__name__
-    }), 500
-
-# For Vercel
-def handler(request):
-    return app(request) 
+    }), 500 
