@@ -6,7 +6,8 @@
             "use": "@vercel/python",
             "config": {
                 "maxLambdaSize": "50mb",
-                "runtime": "python3.9"
+                "runtime": "python3.9",
+                "buildCommand": "pip install -r requirements.txt"
             }
         }
     ],
@@ -19,6 +20,7 @@
     "env": {
         "FLASK_ENV": "production",
         "FLASK_APP": "app.py",
-        "PYTHONPATH": "."
+        "PYTHONPATH": ".",
+        "PYTHONUNBUFFERED": "1"
     }
 } 
