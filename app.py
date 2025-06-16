@@ -16,8 +16,11 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Create Flask app
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Configure app
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Vercel
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Ensure upload directory exists
@@ -49,7 +52,9 @@ if not PROCESSOR_ID:
 # Initialize SQLite database
 def init_db():
     try:
-        conn = sqlite3.connect('chat_logs.db')
+        # Use /tmp for database in Vercel
+        db_path = '/tmp/chat_logs.db'
+        conn = sqlite3.connect(db_path)
         c = conn.cursor()
         
         # Create table if it doesn't exist
@@ -177,7 +182,7 @@ Please provide a clear and concise answer based only on the information present 
         answer = response.text
         
         # Log the chat query in the database
-        conn = sqlite3.connect('chat_logs.db')
+        conn = sqlite3.connect('/tmp/chat_logs.db')
         c = conn.cursor()
         c.execute('INSERT INTO chat_logs (file_name, question, answer) VALUES (?, ?, ?)', (file_name, question, answer))
         conn.commit()
@@ -189,7 +194,7 @@ Please provide a clear and concise answer based only on the information present 
 
 @app.route('/logs', methods=['GET'])
 def view_logs():
-    conn = sqlite3.connect('chat_logs.db')
+    conn = sqlite3.connect('/tmp/chat_logs.db')
     c = conn.cursor()
     c.execute('SELECT id, file_name, question, answer, timestamp FROM chat_logs ORDER BY timestamp DESC')
     logs = c.fetchall()
@@ -228,25 +233,6 @@ def handle_error(error):
         'type': type(error).__name__
     }), 500
 
-# Add this line for Vercel
-app = app
-
-# Remove or comment out the if __name__ == '__main__' block
-# if __name__ == '__main__':
-#     # Configure for production
-#     app.config['SESSION_COOKIE_SECURE'] = True
-#     app.config['SESSION_COOKIE_HTTPONLY'] = True
-#     app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
-#     
-#     # Set host to 0.0.0.0 to allow external connections
-#     # Use environment variable for port or default to 5000
-#     port = int(os.getenv('PORT', 5000))
-#     
-#     # Only run in debug mode if explicitly set
-#     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-#     
-#     app.run(
-#         host='0.0.0.0',
-#         port=port,
-#         debug=debug
-#     ) 
+# For Vercel
+def handler(request):
+    return app(request) 
