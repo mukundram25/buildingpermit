@@ -1,20 +1,10 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "api/serverless.py",
-            "use": "@vercel/python",
-            "config": {
-                "runtime": "python3.12",
-                "maxLambdaSize": "50mb",
-                "includeFiles": [
-                    "app.py",
-                    "templates/**",
-                    "static/**"
-                ]
-            }
+    "functions": {
+        "api/*.py": {
+            "runtime": "python3.12"
         }
-    ],
+    },
     "routes": [
         {
             "src": "/static/(.*)",
@@ -22,7 +12,7 @@
         },
         {
             "src": "/(.*)",
-            "dest": "api/serverless.py"
+            "dest": "api/index.py"
         }
     ],
     "env": {
