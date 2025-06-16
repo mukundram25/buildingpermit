@@ -7,6 +7,11 @@ from doc_extract import process_document_with_docai
 from dotenv import load_dotenv
 import sqlite3
 from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -19,42 +24,65 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Configure Gemini
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-model = genai.GenerativeModel('gemini-1.5-flash')
+try:
+    api_key = os.getenv('GOOGLE_API_KEY')
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is not set")
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    logger.error(f"Error configuring Gemini: {str(e)}")
+    raise
 
 # Document AI configuration
 PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
+if not PROJECT_ID:
+    logger.error("GOOGLE_CLOUD_PROJECT_ID environment variable is not set")
+    raise ValueError("GOOGLE_CLOUD_PROJECT_ID environment variable is not set")
+
 LOCATION = os.getenv('DOCAI_LOCATION', 'us')
 PROCESSOR_ID = os.getenv('DOCAI_PROCESSOR_ID')
+if not PROCESSOR_ID:
+    logger.error("DOCAI_PROCESSOR_ID environment variable is not set")
+    raise ValueError("DOCAI_PROCESSOR_ID environment variable is not set")
 
 # Initialize SQLite database
 def init_db():
-    conn = sqlite3.connect('chat_logs.db')
-    c = conn.cursor()
-    
-    # Create table if it doesn't exist
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS chat_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_name TEXT NOT NULL,
-            question TEXT NOT NULL,
-            answer TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Check if file_name column exists
-    c.execute("PRAGMA table_info(chat_logs)")
-    columns = [column[1] for column in c.fetchall()]
-    
-    # Add file_name column if it doesn't exist
-    if 'file_name' not in columns:
-        c.execute('ALTER TABLE chat_logs ADD COLUMN file_name TEXT NOT NULL DEFAULT "Unknown"')
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('chat_logs.db')
+        c = conn.cursor()
+        
+        # Create table if it doesn't exist
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS chat_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_name TEXT NOT NULL,
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Check if file_name column exists
+        c.execute("PRAGMA table_info(chat_logs)")
+        columns = [column[1] for column in c.fetchall()]
+        
+        # Add file_name column if it doesn't exist
+        if 'file_name' not in columns:
+            c.execute('ALTER TABLE chat_logs ADD COLUMN file_name TEXT NOT NULL DEFAULT "Unknown"')
+        
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing database: {str(e)}")
+        raise
 
-init_db()
+try:
+    init_db()
+except Exception as e:
+    logger.error(f"Failed to initialize database: {str(e)}")
+    raise
 
 def split_pdf(pdf_path):
     """Split PDF into individual pages and save them."""
@@ -194,7 +222,11 @@ Please provide 3 clear and concise questions. Each question should be on a new l
 
 @app.errorhandler(Exception)
 def handle_error(error):
-    return jsonify({'error': str(error)}), 500
+    logger.error(f"Unhandled error: {str(error)}")
+    return jsonify({
+        'error': str(error),
+        'type': type(error).__name__
+    }), 500
 
 # Add this line for Vercel
 app = app
