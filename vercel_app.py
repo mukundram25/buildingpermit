@@ -1,5 +1,6 @@
 import logging
 from app import app
+from flask import request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -7,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 # This is the entry point for Vercel
 def handler(request):
+    """Handle requests to the Vercel serverless function."""
     try:
         logger.info("Received request in Vercel handler")
         response = app(request)
