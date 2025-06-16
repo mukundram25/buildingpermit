@@ -2,7 +2,7 @@
     "version": 2,
     "builds": [
         {
-            "src": "api/vercel_handler.py",
+            "src": "api/serverless.py",
             "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
@@ -22,7 +22,7 @@
         },
         {
             "src": "/(.*)",
-            "dest": "api/vercel_handler.py"
+            "dest": "api/serverless.py"
         }
     ],
     "env": {
