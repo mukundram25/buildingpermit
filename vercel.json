@@ -5,7 +5,7 @@
             "src": "api/serverless.py",
             "use": "@vercel/python",
             "config": {
-                "runtime": "python3.9",
+                "runtime": "python3.12",
                 "maxLambdaSize": "50mb",
                 "includeFiles": [
                     "app.py",
