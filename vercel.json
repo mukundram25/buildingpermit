@@ -6,17 +6,27 @@
             "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
-                "maxLambdaSize": "50mb"
+                "maxLambdaSize": "50mb",
+                "includeFiles": [
+                    "app.py",
+                    "templates/**",
+                    "static/**"
+                ]
             }
         }
     ],
     "routes": [
+        {
+            "src": "/static/(.*)",
+            "dest": "/static/$1"
+        },
         {
             "src": "/(.*)",
             "dest": "api/index.py"
         }
     ],
     "env": {
-        "PYTHONPATH": "."
+        "PYTHONPATH": ".",
+        "FLASK_ENV": "production"
     }
 } 
