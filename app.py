@@ -196,21 +196,25 @@ Please provide 3 clear and concise questions. Each question should be on a new l
 def handle_error(error):
     return jsonify({'error': str(error)}), 500
 
-if __name__ == '__main__':
-    # Configure for production
-    app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
-    
-    # Set host to 0.0.0.0 to allow external connections
-    # Use environment variable for port or default to 5000
-    port = int(os.getenv('PORT', 5000))
-    
-    # Only run in debug mode if explicitly set
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug
-    ) 
+# Add this line for Vercel
+app = app
+
+# Remove or comment out the if __name__ == '__main__' block
+# if __name__ == '__main__':
+#     # Configure for production
+#     app.config['SESSION_COOKIE_SECURE'] = True
+#     app.config['SESSION_COOKIE_HTTPONLY'] = True
+#     app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
+#     
+#     # Set host to 0.0.0.0 to allow external connections
+#     # Use environment variable for port or default to 5000
+#     port = int(os.getenv('PORT', 5000))
+#     
+#     # Only run in debug mode if explicitly set
+#     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+#     
+#     app.run(
+#         host='0.0.0.0',
+#         port=port,
+#         debug=debug
+#     ) 
