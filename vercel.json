@@ -15,7 +15,7 @@
         },
         {
             "src": "/(.*)",
-            "dest": "api/handler.py"
+            "dest": "api/index.py"
         }
     ],
     "env": {
