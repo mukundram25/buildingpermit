@@ -9,5 +9,10 @@ env/
 venv/
 .env
 *.db
+.DS_Store
 uploads/
-.DS_Store 
+DocumentCloud/
+*.pdf
+api/
+vercel.json
+vercel_app.py 
