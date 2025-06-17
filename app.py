@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 import PyPDF2
 import google.generativeai as genai
@@ -23,9 +23,10 @@ load_dotenv()
 
 # Create Flask app
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Required for session
 
 # Configure app
-app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Vercel
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Cloud Run
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Ensure upload directory exists
@@ -172,6 +173,10 @@ def upload_file():
             if doc:
                 all_text.append(doc.text)
         
+        # Store the processed text in session
+        session['document_text'] = '\n'.join(all_text)
+        session['filename'] = filename
+        
         # Clean up temporary files
         for page_file in page_files:
             os.remove(page_file)
@@ -179,7 +184,7 @@ def upload_file():
         
         return jsonify({
             'success': True,
-            'text': '\n'.join(all_text),
+            'text': session['document_text'],
             'progress': f"Processing page {total_pages}/{total_pages}",
             'filename': filename
         })
@@ -189,12 +194,16 @@ def upload_file():
 @app.route('/ask', methods=['POST'])
 def ask_question():
     data = request.json
-    if not data or 'text' not in data or 'question' not in data:
-        return jsonify({'error': 'Missing text or question'}), 400
+    if not data or 'question' not in data:
+        return jsonify({'error': 'Missing question'}), 400
     
-    context = data['text']
+    # Get document text from session
+    if 'document_text' not in session:
+        return jsonify({'error': 'Please upload a document first'}), 400
+    
+    context = session['document_text']
     question = data['question']
-    file_name = data.get('file_name', 'Unknown')  # Get file name from request
+    file_name = session.get('filename', 'Unknown')
     
     # Create prompt for Gemini
     prompt = f"""Based on the following permit document content, please answer this question: {question}
@@ -230,11 +239,11 @@ def view_logs():
 
 @app.route('/suggest_questions', methods=['POST'])
 def suggest_questions():
-    data = request.json
-    if not data or 'text' not in data:
-        return jsonify({'error': 'Missing document text'}), 400
+    # Get document text from session
+    if 'document_text' not in session:
+        return jsonify({'error': 'Please upload a document first'}), 400
     
-    context = data['text']
+    context = session['document_text']
     
     # Create prompt for Gemini to generate sample questions
     prompt = f"""Based on the following permit document content, generate 3 sample questions that can be answered from the document. Do not number the questions.

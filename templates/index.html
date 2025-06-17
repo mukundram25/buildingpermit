@@ -244,146 +244,135 @@
     <script>
         let documentText = '';
         let documentTitle = '';
-        let documentFileName = '';  // Add variable to store filename
+        let documentFileName = '';
         
         // File upload handling
         const fileInput = document.getElementById('fileInput');
         const uploadStatus = document.getElementById('uploadStatus');
+        const questionInput = document.getElementById('questionInput');
+        const askButton = document.getElementById('askButton');
         const chatMessages = document.getElementById('chatMessages');
         
-        function addMessage(text, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-            if (text instanceof HTMLElement) {
-                messageDiv.appendChild(text);
-            } else {
-                messageDiv.innerHTML = `<p class="text-gray-800">${text}</p>`;
-            }
-            chatMessages.querySelector('.messages-wrapper').appendChild(messageDiv);
-            chatMessages.querySelector('.messages-wrapper').scrollTop = chatMessages.querySelector('.messages-wrapper').scrollHeight;
-        }
-        
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
             if (!file) return;
-
-            // Show spinner
-            document.getElementById('uploadStatus').style.display = 'flex';
-            const progressText = document.getElementById('uploadStatus').querySelector('p');
-            progressText.textContent = 'Processing document...';
-
+            
+            // Show upload status
+            uploadStatus.classList.remove('hidden');
+            
             const formData = new FormData();
             formData.append('file', file);
-
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    documentText = data.text;
+                    documentFileName = data.filename;
+                    
+                    // Add success message
+                    addMessage('Document processed successfully! You can now ask questions about it.', 'bot');
+                    
+                    // Get suggested questions
+                    const questionsResponse = await fetch('/suggest_questions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const questionsData = await questionsResponse.json();
+                    
+                    if (questionsData.questions) {
+                        // Add suggested questions
+                        const suggestionsDiv = document.createElement('div');
+                        suggestionsDiv.className = 'suggestions';
+                        
+                        questionsData.questions.forEach(question => {
+                            const bubble = document.createElement('div');
+                            bubble.className = 'suggestion-bubble';
+                            bubble.textContent = question;
+                            bubble.onclick = () => {
+                                questionInput.value = question;
+                                askQuestion(question);
+                            };
+                            suggestionsDiv.appendChild(bubble);
+                        });
+                        
+                        chatMessages.querySelector('.messages-wrapper').appendChild(suggestionsDiv);
+                    }
+                } else {
+                    addMessage('Error processing document: ' + data.error, 'bot');
                 }
-                documentText = data.text;
-                documentFileName = data.filename;  // Store filename from response
-                document.getElementById('uploadStatus').style.display = 'none';
-                
-                // Create success message
-                const successDiv = document.createElement('div');
-                successDiv.className = 'success-message';
-                successDiv.innerHTML = `
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Document processed successfully! Here are some questions you can ask:
-                `;
-                chatMessages.querySelector('.messages-wrapper').appendChild(successDiv);
-                
-                // Generate and display suggested questions
-                return fetch('/suggest_questions', {
+            } catch (error) {
+                addMessage('Error uploading document: ' + error.message, 'bot');
+            } finally {
+                uploadStatus.classList.add('hidden');
+            }
+        });
+        
+        // Question handling
+        async function askQuestion(question) {
+            if (!question) return;
+            
+            // Add user message
+            addMessage(question, 'user');
+            
+            try {
+                const response = await fetch('/ask', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ text: documentText })
+                    body: JSON.stringify({ question })
                 });
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
+                
+                const data = await response.json();
+                
+                if (data.answer) {
+                    addMessage(data.answer, 'bot');
+                } else {
+                    addMessage('Error: ' + data.error, 'bot');
                 }
-                const suggestionsDiv = document.createElement('div');
-                suggestionsDiv.className = 'suggestions';
-                data.questions.forEach(question => {
-                    const bubble = document.createElement('div');
-                    bubble.className = 'suggestion-bubble';
-                    bubble.textContent = question.replace(/^\d+\.\s*/, '');
-                    bubble.onclick = () => {
-                        document.getElementById('questionInput').value = question.replace(/^\d+\.\s*/, '');
-                        document.getElementById('questionInput').focus();
-                    };
-                    suggestionsDiv.appendChild(bubble);
-                });
-                chatMessages.querySelector('.messages-wrapper').appendChild(suggestionsDiv);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('uploadStatus').style.display = 'none';
-                addMessage('Error processing document: ' + error.message, 'assistant');
-            });
-        }
-
-        // Question handling
-        const questionInput = document.getElementById('questionInput');
-        const askButton = document.getElementById('askButton');
-
-        function askQuestion() {
-            const questionInput = document.getElementById('questionInput');
-            const question = questionInput.value.trim();
-            
-            if (!question) return;
-            
-            if (!documentText) {
-                addMessage('Please upload a document first.', 'assistant');
-                return;
+            } catch (error) {
+                addMessage('Error asking question: ' + error.message, 'bot');
             }
-            
-            addMessage(question, 'user');
-            questionInput.value = '';
-            
-            fetch('/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: documentText,
-                    question: question,
-                    file_name: documentFileName  // Send filename with question
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                addMessage(data.answer, 'assistant');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                addMessage('Error: ' + error.message, 'assistant');
-            });
         }
-
-        askButton.addEventListener('click', askQuestion);
-        questionInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                askQuestion();
+        
+        // Add message to chat
+        function addMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.innerHTML = `<p class="text-gray-800">${text}</p>`;
+            
+            const messagesWrapper = chatMessages.querySelector('.messages-wrapper');
+            messagesWrapper.appendChild(messageDiv);
+            messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
+        }
+        
+        // Event listeners
+        askButton.addEventListener('click', () => {
+            const question = questionInput.value.trim();
+            if (question) {
+                askQuestion(question);
+                questionInput.value = '';
             }
         });
-
-        fileInput.addEventListener('change', handleFileSelect); // Bind event in JS
+        
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const question = questionInput.value.trim();
+                if (question) {
+                    askQuestion(question);
+                    questionInput.value = '';
+                }
+            }
+        });
     </script>
 </body>
 </html> 
