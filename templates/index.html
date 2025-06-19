@@ -192,7 +192,7 @@
             <div id="chatMessages" class="chat-container">
                 <div class="messages-wrapper">
                     <div class="message bot-message">
-                        <p class="text-gray-800">👋 Hi! I can help you understand your permit documents. Attach a PDF and ask me any questions about it.</p>
+                        <p class="text-gray-800">Hi! Attach your permit documents and ask me any questions about it.</p>
                     </div>
                 </div>
             </div>
@@ -219,7 +219,7 @@
                         <button id="askButton" 
                                 class="ask-button absolute right-2 top-1/2 transform -translate-y-1/2 focus:outline-none">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
                         </button>
                     </div>
@@ -229,6 +229,7 @@
                 <div id="uploadStatus" class="mt-4 text-center hidden">
                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
                     <p class="mt-2 text-sm text-gray-600">Processing document...</p>
+                    <p id="pageProgress" class="mt-1 text-sm text-gray-500"></p>
                 </div>
             </div>
         </div>
@@ -242,11 +243,7 @@
     </footer>
 
     <script>
-        let documentText = '';
-        let documentTitle = '';
-        let documentFileName = '';
-        
-        // File upload handling
+        let currentDocumentId = null;
         const fileInput = document.getElementById('fileInput');
         const uploadStatus = document.getElementById('uploadStatus');
         const questionInput = document.getElementById('questionInput');
@@ -258,7 +255,8 @@
             if (!file) return;
             
             // Show upload status
-            uploadStatus.classList.remove('hidden');
+            uploadStatus.style.display = 'block';
+            document.getElementById('pageProgress').textContent = 'Starting document processing...';
             
             const formData = new FormData();
             formData.append('file', file);
@@ -271,19 +269,29 @@
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    documentText = data.text;
-                    documentFileName = data.filename;
+                if (response.ok && data.success) {
+                    // Update progress with final page count
+                    document.getElementById('pageProgress').textContent = `Processed ${data.page_count} pages`;
                     
-                    // Add success message
-                    addMessage('Document processed successfully! You can now ask questions about it.', 'bot');
+                    // Store document ID for future questions
+                    currentDocumentId = data.document_id;
+                    
+                    // Create success message with filename
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'message bot-message';
+                    successDiv.innerHTML = `
+                        <p>Document processed successfully! You can now ask questions about it.</p>
+                        <p class="text-sm text-gray-500 mt-1">File: ${file.name}</p>
+                    `;
+                    chatMessages.querySelector('.messages-wrapper').appendChild(successDiv);
                     
                     // Get suggested questions
                     const questionsResponse = await fetch('/suggest_questions', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({ document_id: currentDocumentId })
                     });
                     
                     const questionsData = await questionsResponse.json();
@@ -296,10 +304,17 @@
                         questionsData.questions.forEach(question => {
                             const bubble = document.createElement('div');
                             bubble.className = 'suggestion-bubble';
-                            bubble.textContent = question;
+                            // Remove quotes, trailing commas, and trim whitespace
+                            const simplifiedQuestion = question
+                                .replace(/^["']|["']$/g, '') // Remove quotes
+                                .replace(/,\s*$/, '') // Remove trailing comma and any whitespace
+                                .trim(); // Remove any remaining whitespace
+                            
+                            bubble.textContent = simplifiedQuestion;
                             bubble.onclick = () => {
-                                questionInput.value = question;
-                                askQuestion(question);
+                                questionInput.value = simplifiedQuestion;
+                                askQuestion(simplifiedQuestion);
+                                questionInput.value = '';
                             };
                             suggestionsDiv.appendChild(bubble);
                         });
@@ -307,18 +322,19 @@
                         chatMessages.querySelector('.messages-wrapper').appendChild(suggestionsDiv);
                     }
                 } else {
-                    addMessage('Error processing document: ' + data.error, 'bot');
+                    addMessage('Error processing document: ' + (data.error || 'Unknown error occurred'), 'bot');
                 }
             } catch (error) {
                 addMessage('Error uploading document: ' + error.message, 'bot');
             } finally {
-                uploadStatus.classList.add('hidden');
+                // Hide upload status
+                uploadStatus.style.display = 'none';
             }
         });
         
         // Question handling
         async function askQuestion(question) {
-            if (!question) return;
+            if (!question || !currentDocumentId) return;
             
             // Add user message
             addMessage(question, 'user');
@@ -329,15 +345,18 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ 
+                        question,
+                        document_id: currentDocumentId
+                    })
                 });
                 
                 const data = await response.json();
                 
-                if (data.answer) {
+                if (response.ok && data.answer) {
                     addMessage(data.answer, 'bot');
                 } else {
-                    addMessage('Error: ' + data.error, 'bot');
+                    addMessage('Error: ' + (data.error || 'Unknown error occurred'), 'bot');
                 }
             } catch (error) {
                 addMessage('Error asking question: ' + error.message, 'bot');
